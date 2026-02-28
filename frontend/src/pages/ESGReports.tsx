@@ -90,39 +90,75 @@ function downloadReportAsPDF(report: {
   for (const rawLine of lines) {
     const trimmed = rawLine.trim();
 
-    // Detect section headers (lines that are all-caps or start with ## / ** or end with :)
+    // Skip section divider lines
+    if (/^[─═─]{5,}$/.test(trimmed)) {
+      addNewPageIfNeeded(8);
+      y += 2;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 6;
+      continue;
+    }
+
+    // Detect section headers (## headings or ALL CAPS titles)
     const isHeader =
       /^#{1,3}\s/.test(trimmed) ||
       /^\*\*.*\*\*$/.test(trimmed) ||
-      (/^[A-Z\s\d&,/()-]+:?$/.test(trimmed) && trimmed.length > 3 && trimmed.length < 80);
+      (/^[A-Z\s\d&,/()\-→✓✗≥]+:?$/.test(trimmed) && trimmed.length > 3 && trimmed.length < 80);
 
     if (isHeader) {
       addNewPageIfNeeded(14);
-      y += 4;
+      y += 5;
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
+      doc.setFontSize(12);
       doc.setTextColor(16, 185, 129);
       const headerText = trimmed.replace(/^#+\s*/, "").replace(/^\*\*/, "").replace(/\*\*$/, "");
       doc.text(headerText, margin, y);
-      y += 7;
+      y += 3;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, margin + Math.min(headerText.length * 2.5, usableWidth), y);
+      y += 6;
       doc.setTextColor(40, 40, 40);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       continue;
     }
 
-    // Bullet points
+    // Data labels (lines like "Total CO2: 1234 kg" or "Scope 1 — Direct Emissions: 500 kg")
+    const isDataLabel = /^[A-Za-z].*:\s*.+/.test(trimmed) && !trimmed.startsWith("  ") && trimmed.length < 120;
+
+
+    // Indented formula/calculation lines
+    const isIndented = rawLine.startsWith("  ") && !rawLine.startsWith("    -");
+
+    // Bullet points (- or • or * or numbered like "1.")
     const isBullet = /^[-•*]\s/.test(trimmed);
-    const textX = isBullet ? margin + 4 : margin;
-    const textWidth = isBullet ? usableWidth - 4 : usableWidth;
+    const isNumbered = /^\d+\.\s/.test(trimmed);
+    const textIndent = isBullet || isNumbered ? margin + 4 : isIndented ? margin + 6 : margin;
+    const textWidth = isBullet || isNumbered ? usableWidth - 4 : isIndented ? usableWidth - 6 : usableWidth;
 
     if (trimmed === "") {
       y += 3;
       continue;
     }
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
+    // Style based on line type
+    if (isDataLabel && !isIndented) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 30, 30);
+    } else if (isIndented) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 80, 80);
+    } else {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(40, 40, 40);
+    }
+
     const wrapped = doc.splitTextToSize(trimmed, textWidth);
 
     for (const wLine of wrapped) {
@@ -130,10 +166,17 @@ function downloadReportAsPDF(report: {
       if (isBullet && wLine === wrapped[0]) {
         doc.text("•", margin, y);
       }
-      doc.text(wLine.replace(/^[-•*]\s/, ""), textX, y);
-      y += 5.5;
+      const displayLine = isBullet ? wLine.replace(/^[-•*]\s/, "") : wLine;
+      doc.text(displayLine, textIndent, y);
+      y += 5.2;
+    }
+
+    // Reset font after data labels
+    if (isDataLabel && !isIndented) {
+      doc.setFont("helvetica", "normal");
     }
   }
+
 
   // ── Footer on every page ──
   const totalPages = doc.getNumberOfPages();
