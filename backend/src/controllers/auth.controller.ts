@@ -93,10 +93,12 @@ export class AuthController {
                 }
             } else {
                 company.lastLoginAt = new Date();
-                // Proactively sync email if missing
-                if (!company.email && email) {
+                // Always sync email from Clerk to keep it up-to-date
+                if (email) {
+                    if (company.email !== email) {
+                        logger.info(`Synced email for company "${company.name}": ${company.email || '(none)'} → ${email}`);
+                    }
                     company.email = email;
-                    logger.info(`Synced missing email for company: ${company.name}`);
                 }
                 await company.save();
             }

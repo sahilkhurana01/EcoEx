@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, SlidersHorizontal, MapPin, Plus, Package, Loader2, Clock, Pencil, Trash2, Mail } from "lucide-react";
+import { Search, SlidersHorizontal, MapPin, Plus, Package, Loader2, Clock, Pencil, Trash2, Mail, Handshake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -221,6 +221,26 @@ export default function Marketplace() {
     },
   });
 
+  const findMatchesMutation = useMutation({
+    mutationFn: async (listingId: string) => {
+      const res: any = await api.post('/matches/find', { wasteListingId: listingId });
+      return res;
+    },
+    onSuccess: (res: any) => {
+      const count = res?.data?.length || 0;
+      if (count > 0) {
+        toast.success(`Found ${count} match${count > 1 ? 'es' : ''}! Check the Matches page.`);
+      } else {
+        toast.info(res?.message || 'No matches found above 70% threshold. Try adjusting listing parameters.');
+      }
+      queryClient.invalidateQueries({ queryKey: ['waste-listings'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.error || err?.message || "Failed to find matches.";
+      toast.error(msg);
+    },
+  });
+
   // ===================== QUERIES =====================
 
   const { data: rawBrowseListings } = useQuery({
@@ -249,14 +269,54 @@ export default function Marketplace() {
     return listingCompanyId !== company?.id;
   });
 
+  // Deterministic compatibility score based on listing properties
+  // Uses a hash of the listing ID + material properties for stability (no random flicker)
+  const computeCompatibilityScore = (listing: any): number => {
+    let score = 50; // base
+    const mat = listing.material?.category || '';
+    const qty = listing.quantity?.value || 0;
+    const price = listing.pricing?.amount || 0;
+    const verified = listing.companyId?.verificationStatus;
+    const hasCity = !!listing.companyId?.location?.city;
+
+    // Material relevance (boost common industrial categories)
+    const highDemand = ['metal_scrap', 'plastic', 'electronic', 'chemical'];
+    const medDemand = ['fabric', 'wood', 'construction', 'organic'];
+    if (highDemand.includes(mat)) score += 20;
+    else if (medDemand.includes(mat)) score += 12;
+
+    // Quantity score — larger quantities are more commercially attractive
+    if (qty >= 5000) score += 15;
+    else if (qty >= 1000) score += 10;
+    else if (qty >= 100) score += 5;
+
+    // Price presence (listed price = transparent = better score)
+    if (price > 0) score += 8;
+
+    // Seller verification status
+    if (verified === 'verified' || verified === 'completed') score += 7;
+    else if (verified === 'in_progress') score += 3;
+
+    // Location presence (can calculate logistics)
+    if (hasCity) score += 5;
+
+    // Add a small deterministic variation based on listing ID to avoid all scores being identical
+    const idHash = (listing._id || '').split('').reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0);
+    score += (idHash % 7) - 3; // -3 to +3 variation
+
+    return Math.min(98, Math.max(40, score));
+  };
+
   const dynamicBrowseListings = otherListings.map((r: any) => ({
     id: r._id,
     material: r.material?.category ? r.material.category.replace(/_/g, ' ') : 'Material',
     seller: r.companyId?.name || "EcoEx Verified Seller",
     sellerCity: r.companyId?.location?.city || r.location?.address || null,
+    sellerIndustry: r.companyId?.industry?.replace(/_/g, ' ') || null,
+    sellerVerified: r.companyId?.verificationStatus === 'verified' || r.companyId?.verificationStatus === 'completed',
     quantity: `${r.quantity?.value?.toLocaleString() || 0} ${r.quantity?.unit || 'kg'}`,
     price: `₹${(r.pricing?.amount || 0).toLocaleString()}/${r.quantity?.unit || 'kg'}`,
-    matchScore: Math.floor(Math.random() * 20) + 75,
+    matchScore: computeCompatibilityScore(r),
     createdAt: r.createdAt,
     frequency: r.quantity?.frequency || 'one_time',
   }));
@@ -414,71 +474,93 @@ export default function Marketplace() {
             </Button>
           </div>
 
-          {dynamicBrowseListings.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p className="text-sm font-medium">No listings from other companies yet</p>
-              <p className="text-xs mt-1">Check back soon — new materials are listed every day.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {dynamicBrowseListings.map((listing: any, i: number) => (
-                <motion.div
-                  key={listing.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="industrial-card p-5 flex flex-col"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Package className="h-5 w-5 text-primary" />
+          {(() => {
+            const searchLower = search.toLowerCase();
+            const filtered = searchLower
+              ? dynamicBrowseListings.filter((l: any) =>
+                l.material.toLowerCase().includes(searchLower) ||
+                l.seller.toLowerCase().includes(searchLower) ||
+                (l.sellerCity || '').toLowerCase().includes(searchLower) ||
+                (l.sellerIndustry || '').toLowerCase().includes(searchLower)
+              )
+              : dynamicBrowseListings;
+
+            return filtered.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                <p className="text-sm font-medium">{search ? `No listings matching "${search}"` : 'No listings from other companies yet'}</p>
+                <p className="text-xs mt-1">{search ? 'Try a different search term.' : 'Check back soon — new materials are listed every day.'}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((listing: any, i: number) => (
+                  <motion.div
+                    key={listing.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="industrial-card p-5 flex flex-col"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Package className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground capitalize">{listing.material}</h3>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-xs text-muted-foreground">{listing.seller}</p>
+                            {listing.sellerVerified && (
+                              <span className="text-success" title="Verified Company">✓</span>
+                            )}
+                          </div>
+                          {listing.sellerIndustry && (
+                            <span className="inline-block mt-0.5 px-1.5 py-0 rounded text-[10px] font-medium bg-secondary/10 text-secondary capitalize">
+                              {listing.sellerIndustry}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <MatchScoreBadge score={listing.matchScore} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                      <div>
+                        <span className="text-muted-foreground">Quantity</span>
+                        <p className="font-mono font-semibold text-foreground">{listing.quantity}</p>
                       </div>
                       <div>
-                        <h3 className="text-sm font-semibold text-foreground capitalize">{listing.material}</h3>
-                        <p className="text-xs text-muted-foreground">{listing.seller}</p>
+                        <span className="text-muted-foreground">Price</span>
+                        <p className="font-mono font-semibold text-foreground">{listing.price}</p>
                       </div>
                     </div>
-                    <MatchScoreBadge score={listing.matchScore} />
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                    <div>
-                      <span className="text-muted-foreground">Quantity</span>
-                      <p className="font-mono font-semibold text-foreground">{listing.quantity}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Price</span>
-                      <p className="font-mono font-semibold text-foreground">{listing.price}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-auto pt-3 border-t">
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      {listing.sellerCity && (
+                    <div className="flex items-center justify-between mt-auto pt-3 border-t">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        {listing.sellerCity && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> {listing.sellerCity}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> {listing.sellerCity}
+                          <Clock className="h-3 w-3" /> {formatTimeAgo(listing.createdAt)}
                         </span>
-                      )}
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {formatTimeAgo(listing.createdAt)}
-                      </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs h-7 gap-1"
+                        onClick={() => handleContactClick(listing)}
+                      >
+                        <Mail className="h-3 w-3" />
+                        Contact Seller
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs h-7 gap-1"
-                      onClick={() => handleContactClick(listing)}
-                    >
-                      <Mail className="h-3 w-3" />
-                      Contact Seller
-                    </Button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                  </motion.div>
+                ))}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         {/* ==================== CONTACT SELLER DIALOG ==================== */}
@@ -563,6 +645,17 @@ export default function Marketplace() {
                           >
                             <Pencil className="h-3 w-3" /> Edit
                           </Button>
+                          {item.status === 'active' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs h-7 gap-1 text-primary hover:text-primary"
+                              onClick={() => findMatchesMutation.mutate(item.id)}
+                              disabled={findMatchesMutation.isPending}
+                            >
+                              {findMatchesMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Handshake className="h-3 w-3" />} Find Matches
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="ghost"

@@ -358,7 +358,7 @@ export class MarketplaceController {
             const buyerCompany = await Company.findById(buyerCompanyId);
             const buyerName = buyerCompany?.name || 'A verified company';
             const buyerIndustry = (buyerCompany as any)?.industry || 'Industrial';
-            const buyerEmail = (buyerCompany as any)?.email || '';
+            const buyerEmail = (buyerCompany as any)?.email || req.user?.email || '';
             const buyerMessage = req.body.message || '';
 
             const materialName = listing.material?.category?.replace(/_/g, ' ') || 'waste material';
