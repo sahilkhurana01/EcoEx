@@ -11,7 +11,7 @@ export class BrevoService {
     this.senderEmail = env.BREVO_SENDER_EMAIL || 'noreply@ecoexchange.ai';
 
     const smtpKey = env.BREVO_API_KEY;
-    const smtpLogin = env.BREVO_SMTP_LOGIN;
+    const smtpLogin = env.BREVO_SMTP_LOGIN || env.BREVO_SENDER_EMAIL;
     const smtpServer = env.BREVO_SMTP_SERVER || 'smtp-relay.brevo.com';
     const smtpPort = parseInt(env.BREVO_SMTP_PORT || '587');
 
@@ -25,6 +25,9 @@ export class BrevoService {
           pass: smtpKey,
         },
       });
+      logger.info(`✅ Brevo SMTP initialized (Host: ${smtpServer}, Port: ${smtpPort}, User: ${smtpLogin})`);
+    } else {
+      logger.warn('⚠️ Brevo SMTP NOT configured. Emails will be skipped. Ensure BREVO_API_KEY and BREVO_SENDER_EMAIL are set.');
     }
   }
 
@@ -42,7 +45,7 @@ export class BrevoService {
     } catch (error: any) {
       logger.error('Failed to send match notification:', {
         message: error.message,
-        response: error.response?.data
+        recipient: buyerEmail
       });
     }
   }
@@ -61,7 +64,7 @@ export class BrevoService {
     } catch (error: any) {
       logger.error('Failed to send impact certificate:', {
         message: error.message,
-        response: error.response?.data
+        recipient: userEmail
       });
     }
   }
@@ -80,7 +83,7 @@ export class BrevoService {
     } catch (error: any) {
       logger.error('Failed to send weekly digest:', {
         message: error.message,
-        response: error.response?.data
+        recipient: userEmail
       });
     }
   }
@@ -99,6 +102,7 @@ export class BrevoService {
     } catch (error: any) {
       logger.error('Failed to send contact seller email:', {
         message: error.message,
+        recipient: sellerEmail,
         code: error.code,
       });
       throw error; // propagate so the controller can return a proper error response
@@ -124,25 +128,36 @@ export class BrevoService {
     htmlContent: string;
   }): Promise<string | null> {
     if (!this.transporter) {
-      logger.warn('Brevo SMTP not configured — skipping email. Set BREVO_API_KEY and BREVO_SMTP_LOGIN in .env');
-      return null;
+      const errorMsg = 'Brevo SMTP not configured — skipping email. Set BREVO_API_KEY and BREVO_SENDER_EMAIL in environment variables.';
+      logger.error(errorMsg);
+      throw new Error(errorMsg);
     }
 
-    const info = await this.transporter.sendMail({
-      from: `"EcoExchange" <${this.senderEmail}>`,
-      to: payload.to.map(r => r.name ? `"${r.name}" <${r.email}>` : r.email).join(', '),
-      subject: payload.subject,
-      html: payload.htmlContent,
-    });
+    try {
+      const info = await this.transporter.sendMail({
+        from: `"EcoExchange" <${this.senderEmail}>`,
+        to: payload.to.map(r => r.name ? `"${r.name}" <${r.email}>` : r.email).join(', '),
+        subject: payload.subject,
+        html: payload.htmlContent,
+      });
 
-    return info.messageId || null;
+      logger.info(`📧 Email sent successfully to ${payload.to.map(r => r.email).join(', ')} (ID: ${info.messageId})`);
+      return info.messageId || null;
+    } catch (error: any) {
+      logger.error(`❌ SMTP Direct Error: ${error.message}`, {
+        code: error.code,
+        command: error.command,
+        recipient: payload.to[0]?.email
+      });
+      throw error;
+    }
   }
 
   private async logEmail(matchId: string | undefined, type: string, recipient: string): Promise<void> {
     try {
       await EmailLog.create({ matchId, type, recipient, sentAt: new Date(), status: 'sent' });
     } catch (error) {
-      logger.error('Failed to log email:', error);
+      logger.error('Failed to log email to DB:', error);
     }
   }
 

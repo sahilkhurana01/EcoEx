@@ -49,6 +49,7 @@ export class AlertsController {
                 alertType,
                 severity,
                 customMessage,
+                userEmail: (req as any).user?.email
             });
             const totalTimeMs = Date.now() - startTime;
 

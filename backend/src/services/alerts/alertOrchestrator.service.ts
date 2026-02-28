@@ -71,17 +71,24 @@ export class AlertOrchestratorService {
 
         let recipientEmail = company.email || company.contactPerson?.email || '';
 
-        // --- EMAIL RESILIENCY ---
-        // If no email found on company, and this is a simulation or we have no other choice,
-        // we should not just crash. 
+        // 🧪 SIMULATION / FALLBACK LOGIC
         if (!recipientEmail) {
-            logger.warn(`⚠️ No email found for company ${company.name}. Attempting fallback to sender email.`);
-            const { env: configEnv } = require('../../config/env');
-            recipientEmail = configEnv.BREVO_SENDER_EMAIL || 'khuranasahil099@gmail.com'; // Use a hardcoded fallback if env fails
+            logger.warn(`⚠️ No email found for company ${company.name} (ID: ${companyId}). Trying fallbacks...`);
+
+            // Try to find if there's an email in the user object (if available)
+            if ((params as any).userEmail) {
+                recipientEmail = (params as any).userEmail;
+            } else {
+                // Load environment variables for fallback
+                const { env: configEnv } = require('../../config/env');
+                // Final fallback to the sender email so the user can at least see it in the sender's inbox/logs
+                recipientEmail = configEnv.BREVO_SENDER_EMAIL || 'noreply@ecoexchange.ai';
+                logger.info(`🔄 Falling back to sender email for delivery: ${recipientEmail}`);
+            }
         }
 
         if (!recipientEmail) {
-            logger.error(`❌ Still no recipient email found for company ${company.name}. Skipping email delivery.`);
+            logger.error(`❌ CRITICAL: No recipient email found and no fallback available for company ${company.name} (ID: ${companyId}). Skipping email delivery.`);
             // We continue creating the alert record so it shows up in dashboard, but skip sending
         }
 
@@ -159,8 +166,9 @@ export class AlertOrchestratorService {
         alertType: string;
         severity: AlertSeverity;
         customMessage?: string;
+        userEmail?: string;
     }) {
-        const { companyId, alertType, severity, customMessage } = params;
+        const { companyId, alertType, severity, customMessage, userEmail } = params;
         const scenario = SIMULATION_SCENARIOS[alertType];
         if (!scenario) throw new Error(`Unknown alert type: ${alertType}`);
 
@@ -179,8 +187,9 @@ export class AlertOrchestratorService {
             title: scenario.title,
             description: customMessage || scenario.description,
             isSimulation: true,
-            simulatedBy: companyId
-        });
+            simulatedBy: companyId,
+            userEmail
+        } as any);
 
         // Log simulation
         await SimulationLog.create({
