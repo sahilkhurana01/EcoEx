@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 210 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 20% 12%;
+
+    --primary: 181 61% 15%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 202 48% 33%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 210 20% 95%;
+    --muted-foreground: 210 12% 45%;
+
+    --accent: 16 100% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 210 18% 90%;
+    --input: 210 18% 90%;
+    --ring: 181 61% 15%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 181 61% 10%;
+    --sidebar-foreground: 160 15% 85%;
+    --sidebar-primary: 160 50% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 181 40% 16%;
+    --sidebar-accent-foreground: 160 15% 90%;
+    --sidebar-border: 181 30% 18%;
+    --sidebar-ring: 160 50% 55%;
+
+    /* Custom tokens */
+    --forest: 181 61% 15%;
+    --forest-light: 181 40% 25%;
+    --steel: 202 48% 33%;
+    --steel-light: 202 35% 50%;
+    --warning: 16 100% 60%;
+    --warning-light: 16 90% 70%;
+    --success: 150 60% 40%;
+    --success-light: 150 50% 90%;
+    --danger: 0 84% 60%;
+    --danger-light: 0 70% 92%;
+
+    --chart-1: 181 61% 15%;
+    --chart-2: 202 48% 33%;
+    --chart-3: 16 100% 60%;
+    --chart-4: 150 60% 40%;
+    --chart-5: 280 50% 50%;
+
+    --gradient-forest: linear-gradient(135deg, hsl(181 61% 15%), hsl(181 40% 25%));
+    --gradient-steel: linear-gradient(135deg, hsl(202 48% 33%), hsl(202 35% 50%));
+    --gradient-accent: linear-gradient(135deg, hsl(16 100% 60%), hsl(30 100% 55%));
+
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --industrial-glow: 0 0 40px -10px rgba(79, 209, 197, 0.3);
+  }
+
+  .dark {
+    --background: 210 25% 8%;
+    --foreground: 0 0% 95%;
+    --card: 210 25% 11%;
+    --card-foreground: 0 0% 95%;
+    --popover: 210 25% 11%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 160 50% 55%;
+    --primary-foreground: 181 61% 10%;
+    --secondary: 202 35% 50%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 210 20% 18%;
+    --muted-foreground: 210 12% 60%;
+    --accent: 16 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 18% 20%;
+    --input: 210 18% 20%;
+    --ring: 160 50% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+@layer utilities {
+  .text-gradient-forest {
+    background: var(--gradient-forest);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-forest {
+    background: var(--gradient-forest);
+  }
+
+  .bg-gradient-steel {
+    background: var(--gradient-steel);
+  }
+
+  .bg-gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  .data-value {
+    font-family: var(--font-mono);
+    @apply text-2xl font-bold tracking-tight;
+  }
+
+  .data-label {
+    @apply text-sm font-medium text-muted-foreground uppercase tracking-wider;
+  }
+
+  .industrial-card {
+    @apply bg-card rounded-xl border shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .mask-gradient-to-t {
+    mask-image: linear-gradient(to top, black 20%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, black 20%, transparent 100%);
+  }
+
+  .bg-grid-white {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='white' stroke-opacity='0.1' stroke-width='1'%3E%3Cpath d='M0 .5H31.5V32'/%3E%3C/svg%3E");
+  }
+
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-2xl;
+  }
+
+  .glass-card-hover {
+    @apply hover:bg-white/[0.06] hover:border-white/20 transition-all duration-500;
+  }
+
+  .text-shadow-glow {
+    text-shadow: 0 0 20px rgba(79, 209, 197, 0.5);
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .rotate-x-10 {
+    transform: rotateX(10deg);
+  }
+}
