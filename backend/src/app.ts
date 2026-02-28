@@ -19,9 +19,17 @@ const app = express();
 app.use(helmet());
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || /^http:\/\/localhost:\d+$/.test(origin) || origin === env.FRONTEND_URL) {
+        const allowedOrigins = [
+            'https://ecoex.onrender.com',
+            'https://ecoexchange.ai',
+            env.FRONTEND_URL,
+            env.FRONTEND_URL.replace(/\/$/, '') // handle trailing slash
+        ];
+
+        if (!origin || /^http:\/\/localhost:\d+$/.test(origin) || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            logger.warn(`Rejected origin by CORS: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },

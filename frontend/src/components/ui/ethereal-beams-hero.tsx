@@ -90,7 +90,18 @@ ${code}`)
 }
 
 const CanvasWrapper: FC<{ children: ReactNode }> = ({ children }) => (
-    <Canvas dpr={[1, 2]} frameloop="always" className="w-full h-full relative" style={{ background: '#050B0B' }}>
+    <Canvas
+        dpr={[1, 1.5]}
+        frameloop="always"
+        className="w-full h-full relative"
+        style={{ background: '#050B0B' }}
+        gl={{
+            powerPreference: "high-performance",
+            antialias: false,
+            stencil: false,
+            depth: true
+        }}
+    >
         {children}
     </Canvas>
 )

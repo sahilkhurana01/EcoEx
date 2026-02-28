@@ -57,6 +57,13 @@ export const errorHandler = (
         return;
     }
 
+    // Ensure CORS headers are present even on error responses
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
     // Default server error
     const statusCode = err.statusCode || 500;
     res.status(statusCode).json({

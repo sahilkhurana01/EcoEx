@@ -94,26 +94,33 @@ Return ONLY the JSON array, no markdown, no explanation.`;
 
         const suggestions = Array.isArray(parsed) ? parsed : (parsed.suggestions || parsed.recommendations || []);
 
-        return suggestions.map((s: any, idx: number) => ({
-            category: s.category || 'energy_efficiency',
-            title: s.title || `Suggestion ${idx + 1}`,
-            description: s.description || '',
-            implementationSteps: s.implementationSteps || s.steps || [],
-            complexity: s.complexity || 'medium',
-            investmentInr: s.investmentInr ?? s.investment ?? null,
-            annualSavings: {
-                co2Kg: s.annualSavingsCo2Kg || s.co2Savings || 0,
-                inr: s.annualSavingsInr || s.costSavings || 0,
-            },
-            paybackMonths: s.paybackMonths ?? s.payback ?? null,
-            impactScore: s.impactScore || 50,
-            priorityRank: idx + 1,
-            source: 'groq' as const,
-            metadata: {
-                model: 'llama-3.3-70b-versatile',
-                generatedAt: new Date(),
-            },
-        }));
+        return suggestions.map((s: any, idx: number) => {
+            const investment = s.investmentInr ?? s.investment;
+            const co2 = s.annualSavingsCo2Kg ?? s.co2Savings ?? 0;
+            const inr = s.annualSavingsInr ?? s.costSavings ?? 0;
+            const payback = s.paybackMonths ?? s.payback;
+
+            return {
+                category: s.category || 'energy_efficiency',
+                title: s.title || `Suggestion ${idx + 1}`,
+                description: s.description || '',
+                implementationSteps: Array.isArray(s.implementationSteps) ? s.implementationSteps : [],
+                complexity: ['low', 'medium', 'high'].includes(s.complexity) ? s.complexity : 'medium',
+                investmentInr: investment ? Number(investment) : null,
+                annualSavings: {
+                    co2Kg: Number(co2) || 0,
+                    inr: Number(inr) || 0,
+                },
+                paybackMonths: payback ? Number(payback) : null,
+                impactScore: Number(s.impactScore) || 50,
+                priorityRank: idx + 1,
+                source: 'groq' as const,
+                metadata: {
+                    model: 'llama-3.3-70b-versatile',
+                    generatedAt: new Date(),
+                },
+            };
+        });
     } catch (error: any) {
         logger.error('Groq AI suggestion generation failed:', error.message);
 
