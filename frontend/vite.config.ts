@@ -82,10 +82,24 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       devOptions: {
-        enabled: true,
+        enabled: false, // Disable PWA in dev to bypass complex cache issues
       },
     }),
   ].filter(Boolean),
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@clerk/clerk-react",
+      "@tanstack/react-query",
+      "lucide-react",
+      "framer-motion",
+      "zustand",
+      "clsx",
+      "tailwind-merge"
+    ],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -94,17 +108,5 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     chunkSizeWarningLimit: 5000,
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor-react';
-            }
-            return 'vendor';
-          }
-        },
-      },
-    },
   },
 }));
