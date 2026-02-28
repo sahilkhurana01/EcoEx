@@ -1,61 +1,60 @@
-import nodemailer from 'nodemailer';
 import { env } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { EmailLog } from '../../models/EmailLog';
 
+// ═══════════════════════════════════════════════════════════════
+// BREVO EMAIL SERVICE — HTTP API (works on Render, no SMTP needed)
+// ═══════════════════════════════════════════════════════════════
+
 export class BrevoService {
-  private transporter: nodemailer.Transporter | null = null;
+  private apiKey: string | null;
   private senderEmail: string;
-  private smtpHealthy: boolean = false;
-  private lastHealthCheck: number = 0;
-  private static HEALTH_RECHECK_MS = 5 * 60 * 1000; // Retry SMTP health every 5 minutes
+  private senderName: string = 'EcoExchange';
+  private apiUrl = 'https://api.brevo.com/v3/smtp/email';
 
   constructor() {
     this.senderEmail = env.BREVO_SENDER_EMAIL || 'noreply@ecoexchange.ai';
+    this.apiKey = env.BREVO_API_KEY || null;
 
-    const smtpKey = env.BREVO_API_KEY;
-    const smtpLogin = env.BREVO_SMTP_LOGIN || env.BREVO_SENDER_EMAIL;
-    const smtpServer = env.BREVO_SMTP_SERVER || 'smtp-relay.brevo.com';
-    const smtpPort = parseInt(env.BREVO_SMTP_PORT || '587');
-
-    if (smtpKey && smtpLogin) {
-      this.transporter = nodemailer.createTransport({
-        host: smtpServer,
-        port: smtpPort,
-        secure: false, // STARTTLS on port 587
-        auth: {
-          user: smtpLogin,
-          pass: smtpKey,
-        },
-        connectionTimeout: 8000,  // 8s to establish TCP connection
-        greetingTimeout: 5000,    // 5s for SMTP greeting
-        socketTimeout: 10000,     // 10s for socket inactivity
-      } as any);
-
-      // Verify connection on startup (non-blocking)
-      this.transporter.verify((error: any) => {
-        if (error) {
-          this.smtpHealthy = false;
-          this.lastHealthCheck = Date.now();
-          logger.error('❌ Brevo SMTP Verification Failed:', {
-            message: error.message,
-            code: error.code,
-            user: smtpLogin,
-          });
-        } else {
-          this.smtpHealthy = true;
-          this.lastHealthCheck = Date.now();
-          logger.info(`✅ Brevo SMTP Ready & Verified (Host: ${smtpServer}, User: ${smtpLogin})`);
-        }
-      });
+    if (this.apiKey) {
+      if (this.apiKey.startsWith('xsmtpsib-')) {
+        logger.warn('⚠️ BREVO_API_KEY looks like an SMTP key (xsmtpsib-...). The HTTP API needs a v3 API key (xkeysib-...). Get it from: Brevo Dashboard → Settings → SMTP & API → API Keys');
+      }
+      // Verify API key on startup with a lightweight call
+      this.verifyApiKey();
     } else {
-      logger.warn('⚠️ Brevo SMTP NOT configured. Emails will be skipped. Ensure BREVO_API_KEY and BREVO_SENDER_EMAIL are set.');
+      logger.warn('⚠️ Brevo API key NOT configured. Emails will be skipped. Set BREVO_API_KEY in environment variables.');
     }
   }
 
-  /**
-   * Send match notification to buyer
-   */
+  private async verifyApiKey(): Promise<void> {
+    try {
+      const res = await fetch('https://api.brevo.com/v3/account', {
+        method: 'GET',
+        headers: {
+          'api-key': this.apiKey!,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (res.ok) {
+        const account: any = await res.json();
+        logger.info(`✅ Brevo HTTP API Ready — Account: ${account.email || 'verified'}, Plan: ${account.plan?.[0]?.type || 'active'}`);
+      } else if (res.status === 401) {
+        logger.error('❌ Brevo API key is INVALID or UNAUTHORIZED. Make sure you\'re using a v3 API key (starts with xkeysib-), not an SMTP key (xsmtpsib-). Get it from: Brevo Dashboard → Settings → SMTP & API → API Keys');
+      } else {
+        const errBody = await res.text();
+        logger.error(`❌ Brevo API key verification failed (HTTP ${res.status}): ${errBody}`);
+      }
+    } catch (error: any) {
+      logger.error(`❌ Brevo API connectivity check failed: ${error.message}`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // PUBLIC EMAIL METHODS
+  // ═══════════════════════════════════════════════════════════════
+
   async sendMatchNotification(buyerEmail: string, matchData: any): Promise<void> {
     try {
       await this.sendEmail({
@@ -72,9 +71,6 @@ export class BrevoService {
     }
   }
 
-  /**
-   * Send impact certificate
-   */
   async sendImpactCertificate(userEmail: string, passportData: any): Promise<void> {
     try {
       await this.sendEmail({
@@ -91,9 +87,6 @@ export class BrevoService {
     }
   }
 
-  /**
-   * Send weekly digest
-   */
   async sendWeeklyDigest(userEmail: string, summary: any): Promise<void> {
     try {
       await this.sendEmail({
@@ -110,9 +103,6 @@ export class BrevoService {
     }
   }
 
-  /**
-   * Send contact seller notification — a buyer is interested in their listing
-   */
   async sendContactSellerEmail(sellerEmail: string, data: any): Promise<void> {
     try {
       await this.sendEmail({
@@ -127,13 +117,10 @@ export class BrevoService {
         recipient: sellerEmail,
         code: error.code,
       });
-      throw error; // propagate so the controller can return a proper error response
+      throw error;
     }
   }
 
-  /**
-   * Send a pre-rendered alert email (used by alert orchestrator)
-   */
   async sendAlertEmail(recipientEmail: string, subject: string, htmlBody: string): Promise<string | null> {
     const messageId = await this.sendEmail({
       to: [{ email: recipientEmail }],
@@ -144,51 +131,58 @@ export class BrevoService {
     return messageId;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // CORE — Brevo HTTP API (replaces SMTP)
+  // ═══════════════════════════════════════════════════════════════
+
   private async sendEmail(payload: {
     to: Array<{ email: string; name?: string }>;
     subject: string;
     htmlContent: string;
   }): Promise<string | null> {
-    if (!this.transporter) {
-      const errorMsg = 'Brevo SMTP not configured — skipping email. Set BREVO_API_KEY and BREVO_SENDER_EMAIL in environment variables.';
+    if (!this.apiKey) {
+      const errorMsg = 'Brevo API key not configured — skipping email. Set BREVO_API_KEY in environment variables.';
       logger.error(errorMsg);
       throw new Error(errorMsg);
     }
 
-    // Fast-fail if SMTP was recently verified as unhealthy
-    const timeSinceCheck = Date.now() - this.lastHealthCheck;
-    if (!this.smtpHealthy && timeSinceCheck < BrevoService.HEALTH_RECHECK_MS) {
-      const errorMsg = 'SMTP service is temporarily unavailable (last check failed). Will retry automatically in a few minutes.';
-      logger.warn(`⏭️ Skipping email to ${payload.to[0]?.email} — ${errorMsg}`);
-      throw new Error(errorMsg);
-    }
+    const body = {
+      sender: { name: this.senderName, email: this.senderEmail },
+      to: payload.to.map(r => ({ email: r.email, name: r.name || r.email })),
+      subject: payload.subject,
+      htmlContent: payload.htmlContent,
+    };
 
     try {
-      const info = await this.transporter.sendMail({
-        from: `"EcoExchange" <${this.senderEmail}>`,
-        to: payload.to.map(r => r.name ? `"${r.name}" <${r.email}>` : r.email).join(', '),
-        subject: payload.subject,
-        html: payload.htmlContent,
+      const res = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'api-key': this.apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000), // 15s hard timeout
       });
 
-      // Mark healthy on success
-      this.smtpHealthy = true;
-      this.lastHealthCheck = Date.now();
-
-      logger.info(`📧 Email sent successfully to ${payload.to.map(r => r.email).join(', ')} (ID: ${info.messageId})`);
-      return info.messageId || null;
-    } catch (error: any) {
-      // Mark unhealthy on timeout/connection errors
-      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'ESOCKET') {
-        this.smtpHealthy = false;
-        this.lastHealthCheck = Date.now();
+      if (res.ok) {
+        const result: any = await res.json();
+        const messageId = result.messageId || null;
+        logger.info(`📧 Email sent via Brevo HTTP API to ${payload.to.map(r => r.email).join(', ')} (ID: ${messageId})`);
+        return messageId;
+      } else {
+        const errBody = await res.text();
+        logger.error(`❌ Brevo HTTP API Error (${res.status}): ${errBody}`, {
+          recipient: payload.to[0]?.email,
+          status: res.status,
+        });
+        throw new Error(`Brevo API error (${res.status}): ${errBody}`);
       }
-
-      logger.error(`❌ SMTP Direct Error: ${error.message}`, {
-        code: error.code,
-        command: error.command,
-        recipient: payload.to[0]?.email
-      });
+    } catch (error: any) {
+      if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+        logger.error(`❌ Brevo HTTP API Timeout after 15s`, { recipient: payload.to[0]?.email });
+        throw new Error('Email service timed out. Please try again later.');
+      }
       throw error;
     }
   }
@@ -200,6 +194,10 @@ export class BrevoService {
       logger.error('Failed to log email to DB:', error);
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // EMAIL TEMPLATES
+  // ═══════════════════════════════════════════════════════════════
 
   private matchNotificationTemplate(data: any): string {
     return `
@@ -263,6 +261,7 @@ export class BrevoService {
   </div>
 </div>`;
   }
+
   private contactSellerTemplate(data: any): string {
     return `
 <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0a0a0a; color: #e5e5e5; border-radius: 12px; overflow: hidden;">
