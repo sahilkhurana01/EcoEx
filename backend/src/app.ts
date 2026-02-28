@@ -55,6 +55,16 @@ app.use('/api/', apiLimiter);
 
 // ======================== ROUTES ========================
 
+// Root
+app.get('/', (_req, res) => {
+    res.json({
+        success: true,
+        message: '🌍 EcoExchange API is online and operational.',
+        documentation: 'https://ecoexchange.ai',
+        health: '/api/health'
+    });
+});
+
 // Health check
 app.get('/api/health', (_req, res) => {
     res.json({
