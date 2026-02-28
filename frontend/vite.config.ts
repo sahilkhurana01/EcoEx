@@ -92,14 +92,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
-          'vendor-ui': ['lucide-react', 'recharts', 'framer-motion'],
-        }
-      }
-    }
+    chunkSizeWarningLimit: 3000,
   },
 }));
