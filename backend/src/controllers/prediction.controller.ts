@@ -122,7 +122,7 @@ function extractEnergyData(company: any) {
 // ═══════════════════════════════════════════════════════════════
 // GENERATE PREDICTIONS FROM COMPANY DATA
 // ═══════════════════════════════════════════════════════════════
-async function generatePrediction(company: any): Promise<any> {
+export async function generatePrediction(company: any): Promise<any> {
     logger.info(`🔍 Generating sustainability model for: ${company.name} (${company._id})`);
 
     const energy = extractEnergyData(company);

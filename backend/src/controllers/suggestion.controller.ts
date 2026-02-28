@@ -5,6 +5,7 @@ import { Suggestion } from '../models/Suggestion';
 import { logger } from '../utils/logger';
 import Groq from 'groq-sdk';
 import { env } from '../config/env';
+import { generatePrediction } from './prediction.controller';
 
 const groq = new Groq({ apiKey: env.GROQ_API_KEY });
 
@@ -294,8 +295,9 @@ export class SuggestionController {
             }).sort({ generatedAt: -1 });
 
             if (!prediction) {
-                res.status(400).json({ success: false, error: 'No prediction available. Generate predictions first.' });
-                return;
+                logger.info(`No prediction found for company ${req.params.companyId}. Auto-generating...`);
+                const predictionData = await generatePrediction(company);
+                prediction = await Prediction.create(predictionData);
             }
 
             const fc = company.fuelConsumption || {};
