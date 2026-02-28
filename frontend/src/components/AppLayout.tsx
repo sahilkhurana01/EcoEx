@@ -75,21 +75,22 @@ export function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-background selection:bg-primary/20">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b px-4 bg-card">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger />
+          <header className="sticky top-0 z-40 h-16 sm:h-14 flex shrink-0 items-center justify-between border-b px-4 sm:px-6 bg-background/80 backdrop-blur-md">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <SidebarTrigger className="-ml-1 h-9 w-9 sm:h-8 sm:w-8" />
+              <div className="h-4 w-[1px] bg-border mx-1 sm:hidden" />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 sm:gap-4">
               <AlertBell />
-              <div className="flex items-center gap-2.5">
-                <div className="hidden md:block text-right">
-                  <p className="text-sm font-medium leading-none">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="hidden lg:block text-right">
+                  <p className="text-xs sm:text-sm font-bold leading-none text-foreground">
                     {company?.name || user?.fullName || "My Company"}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
                     {user?.primaryEmailAddress?.emailAddress || company?.email || ""}
                   </p>
                 </div>
@@ -97,22 +98,20 @@ export function AppLayout() {
                   afterSignOutUrl="/"
                   appearance={{
                     elements: {
-                      avatarBox: "h-8 w-8",
-                      userButtonTrigger: "focus:shadow-none",
+                      avatarBox: "h-9 w-9 sm:h-8 sm:w-8",
+                      userButtonTrigger: "focus:shadow-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-full transition-shadow",
                     }
                   }}
                 />
               </div>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
+          <main className="flex-1 p-3 sm:p-6 md:p-8 lg:p-10">
             <Outlet />
           </main>
         </div>
       </div>
-      {/* Floating Simulation Button */}
       <SimulationFAB />
-      {/* PWA Install Prompt */}
       <PWAInstallPrompt />
     </SidebarProvider>
   );

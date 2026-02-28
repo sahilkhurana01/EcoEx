@@ -12,29 +12,28 @@ export default function LandingPage() {
 
     return (
         <div className="min-h-screen bg-[#050B0B] text-white selection:bg-teal-500/30 selection:text-white overflow-x-hidden font-sans">
-            {/* Navigation */}
             <nav className="fixed top-0 w-full z-[100] border-b border-white/5 bg-[#050B0B]/60 backdrop-blur-xl">
-                <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center">
-                            <Leaf className="h-6 w-6 text-white" />
+                <div className="container mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shrink-0">
+                            <Leaf className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                         </div>
-                        <span className="text-xl font-bold tracking-tight uppercase">EcoEx</span>
+                        <span className="text-lg sm:text-xl font-bold tracking-tight uppercase">EcoEx</span>
                     </div>
                     <div className="hidden md:flex items-center gap-12 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
                         <a href="#features" className="hover:text-teal-400 transition-all duration-300">Architecture</a>
                         <a href="#impact" className="hover:text-teal-400 transition-all duration-300">Impact</a>
                         <a href="#developer-api" className="hover:text-teal-400 transition-all duration-300">API</a>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
                         {isSignedIn ? (
-                            <Button asChild className="rounded-full bg-white text-black hover:bg-teal-400 hover:text-black transition-all font-bold px-8">
+                            <Button asChild className="rounded-full bg-white text-black hover:bg-teal-400 hover:text-black transition-all font-bold px-6 sm:px-8 h-10 sm:h-11">
                                 <Link to="/dashboard">DASHBOARD</Link>
                             </Button>
                         ) : (
                             <>
-                                <Link to="/login" className="text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white transition-colors">Sign In</Link>
-                                <Button asChild className="rounded-full bg-white text-black hover:bg-teal-400 hover:text-black transition-all font-bold px-8">
+                                <Link to="/login" className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white/60 hover:text-white transition-colors">Sign In</Link>
+                                <Button asChild className="rounded-full bg-white text-black hover:bg-teal-400 hover:text-black transition-all font-bold px-5 sm:px-8 h-10 sm:h-11">
                                     <Link to="/sign-up">ENTER SYSTEM</Link>
                                 </Button>
                             </>

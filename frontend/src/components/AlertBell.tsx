@@ -137,7 +137,7 @@ export function AlertBell() {
             {/* Dropdown */}
             {isOpen && (
                 <div
-                    className="absolute right-0 top-full mt-2 w-[360px] bg-[#0f0f0f] border border-[#262626] rounded-2xl shadow-2xl overflow-hidden z-50"
+                    className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[360px] bg-[#0f0f0f] border border-[#262626] rounded-2xl shadow-2xl overflow-hidden z-50"
                     style={{ animation: "dropdown-slide 0.2s ease-out" }}
                 >
                     {/* Header */}
