@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npx update-browserslist-db@latest --yes && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -47,6 +47,7 @@
     "@tanstack/react-query": "^5.83.0",
     "@types/three": "^0.183.1",
     "axios": "^1.13.5",
+    "caniuse-lite": "^1.0.30001774",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
