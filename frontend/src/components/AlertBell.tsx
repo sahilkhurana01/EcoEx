@@ -57,16 +57,13 @@ export function AlertBell() {
     useEffect(() => {
         if (!company?.id) return;
 
-        console.log(`[AlertBell] Setting up polling for company: ${company.id}`);
         fetchAlerts();
 
         const interval = setInterval(() => {
-            console.log(`[AlertBell] Polling for updates...`);
             fetchAlerts();
         }, 30000);
 
         return () => {
-            console.log(`[AlertBell] Cleaning up polling...`);
             clearInterval(interval);
         };
     }, [company?.id]); // Use primitive ID to avoid object identity issues

@@ -101,6 +101,16 @@ const CanvasWrapper: FC<{ children: ReactNode }> = ({ children }) => (
             stencil: false,
             depth: true
         }}
+        onCreated={({ gl }) => {
+            const canvas = gl.domElement;
+            canvas.addEventListener('webglcontextlost', (e) => {
+                e.preventDefault();
+                console.warn('[EtherealBeams] WebGL context lost — waiting for restore...');
+            });
+            canvas.addEventListener('webglcontextrestored', () => {
+                console.info('[EtherealBeams] WebGL context restored.');
+            });
+        }}
     >
         {children}
     </Canvas>

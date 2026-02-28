@@ -60,7 +60,6 @@ export class MarketplaceController {
             if (hazardous !== undefined) filter['material.hazardous'] = hazardous === 'true';
             if (companyId) filter.companyId = companyId;
 
-            console.log("DEBUG: Search filter:", filter);
 
             // Geospatial filter
             if (lng && lat && radiusKm) {
@@ -98,7 +97,6 @@ export class MarketplaceController {
                 WasteListing.countDocuments(filter),
             ]);
 
-            console.log(`DEBUG: Found ${total} listings`);
 
             res.json({
                 success: true,
@@ -367,7 +365,11 @@ export class MarketplaceController {
             const quantity = `${listing.quantity?.value || 0} ${listing.quantity?.unit || 'kg'}`;
             const price = listing.pricing?.amount ? `₹${listing.pricing.amount.toLocaleString()}` : 'Negotiable';
 
-            // Send email to seller via Brevo
+            // Always record the inquiry regardless of email outcome
+            await WasteListing.findByIdAndUpdate(listingId, { $inc: { inquiryCount: 1 } });
+
+            // Attempt email delivery (non-blocking for the user experience)
+            let emailSent = false;
             try {
                 await brevoService.sendContactSellerEmail(sellerEmail, {
                     sellerName: sellerCompany?.name || 'Seller',
@@ -380,27 +382,29 @@ export class MarketplaceController {
                     price,
                     listingId,
                 });
+                emailSent = true;
             } catch (emailError: any) {
                 logger.error(`Failed to deliver contact-seller email for listing ${listingId}:`, {
                     message: emailError.message,
                     code: emailError.code,
                 });
-                res.status(500).json({
-                    success: false,
-                    error: 'Failed to send email to the seller. Please try again later.',
-                });
-                return;
             }
 
-            // Increment inquiry count
-            await WasteListing.findByIdAndUpdate(listingId, { $inc: { inquiryCount: 1 } });
-
-            logger.info(`Contact seller email sent for listing ${listingId} from ${buyerName}`);
-
-            res.json({
-                success: true,
-                message: 'Interest notification sent to seller. They will contact you shortly.',
-            });
+            if (emailSent) {
+                logger.info(`Contact seller email sent for listing ${listingId} from ${buyerName}`);
+                res.json({
+                    success: true,
+                    message: 'Interest notification sent to seller. They will contact you shortly.',
+                });
+            } else {
+                // Partial success — interest recorded but email failed
+                logger.info(`Interest recorded for listing ${listingId} from ${buyerName} (email delivery failed)`);
+                res.status(202).json({
+                    success: true,
+                    message: 'Your interest has been recorded. The seller will be notified when the email service recovers.',
+                    emailDelivered: false,
+                });
+            }
         } catch (error) {
             next(error);
         }

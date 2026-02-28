@@ -6,6 +6,9 @@ import { EmailLog } from '../../models/EmailLog';
 export class BrevoService {
   private transporter: nodemailer.Transporter | null = null;
   private senderEmail: string;
+  private smtpHealthy: boolean = false;
+  private lastHealthCheck: number = 0;
+  private static HEALTH_RECHECK_MS = 5 * 60 * 1000; // Retry SMTP health every 5 minutes
 
   constructor() {
     this.senderEmail = env.BREVO_SENDER_EMAIL || 'noreply@ecoexchange.ai';
@@ -24,18 +27,24 @@ export class BrevoService {
           user: smtpLogin,
           pass: smtpKey,
         },
-        timeout: 10000, // 10 second timeout
+        connectionTimeout: 8000,  // 8s to establish TCP connection
+        greetingTimeout: 5000,    // 5s for SMTP greeting
+        socketTimeout: 10000,     // 10s for socket inactivity
       } as any);
 
-      // Verify connection on startup
-      this.transporter.verify((error: any, success) => {
+      // Verify connection on startup (non-blocking)
+      this.transporter.verify((error: any) => {
         if (error) {
+          this.smtpHealthy = false;
+          this.lastHealthCheck = Date.now();
           logger.error('❌ Brevo SMTP Verification Failed:', {
             message: error.message,
             code: error.code,
             user: smtpLogin,
           });
         } else {
+          this.smtpHealthy = true;
+          this.lastHealthCheck = Date.now();
           logger.info(`✅ Brevo SMTP Ready & Verified (Host: ${smtpServer}, User: ${smtpLogin})`);
         }
       });
@@ -146,6 +155,14 @@ export class BrevoService {
       throw new Error(errorMsg);
     }
 
+    // Fast-fail if SMTP was recently verified as unhealthy
+    const timeSinceCheck = Date.now() - this.lastHealthCheck;
+    if (!this.smtpHealthy && timeSinceCheck < BrevoService.HEALTH_RECHECK_MS) {
+      const errorMsg = 'SMTP service is temporarily unavailable (last check failed). Will retry automatically in a few minutes.';
+      logger.warn(`⏭️ Skipping email to ${payload.to[0]?.email} — ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
     try {
       const info = await this.transporter.sendMail({
         from: `"EcoExchange" <${this.senderEmail}>`,
@@ -154,9 +171,19 @@ export class BrevoService {
         html: payload.htmlContent,
       });
 
+      // Mark healthy on success
+      this.smtpHealthy = true;
+      this.lastHealthCheck = Date.now();
+
       logger.info(`📧 Email sent successfully to ${payload.to.map(r => r.email).join(', ')} (ID: ${info.messageId})`);
       return info.messageId || null;
     } catch (error: any) {
+      // Mark unhealthy on timeout/connection errors
+      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED' || error.code === 'ESOCKET') {
+        this.smtpHealthy = false;
+        this.lastHealthCheck = Date.now();
+      }
+
       logger.error(`❌ SMTP Direct Error: ${error.message}`, {
         code: error.code,
         command: error.command,

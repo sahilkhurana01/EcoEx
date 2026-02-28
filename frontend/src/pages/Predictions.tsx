@@ -97,8 +97,15 @@ export default function Predictions() {
   const { data: groqSuggestions, isLoading: groqLoading } = useQuery({
     queryKey: ['groq-suggestions', company?.id],
     queryFn: async () => {
-      const res: any = await api.post(`/suggestions/${company?.id}/generate`);
-      return res.data || res;
+      try {
+        const res: any = await api.post(`/suggestions/${company?.id}/generate`);
+        // Backend returns { success, data: [...suggestions] }
+        const suggestions = res?.data || res?.suggestions || [];
+        return { suggestions: Array.isArray(suggestions) ? suggestions : [] };
+      } catch (err) {
+        console.warn('[Predictions] Groq suggestions failed, using fallback:', err);
+        return { suggestions: [] };
+      }
     },
     enabled: !!company?.id,
     staleTime: 1000 * 60 * 60 * 24, // 24hr cache
@@ -144,7 +151,7 @@ export default function Predictions() {
   const trendDir = forecast?.trend;
 
   // Combine ML + Groq suggestions
-  const allGroqSuggestions = groqSuggestions?.suggestions || groqSuggestions?.data?.suggestions || [];
+  const allGroqSuggestions = groqSuggestions?.suggestions || [];
 
   // ───────── CONFIDENCE SCORE ENGINE ─────────
   const [showConfidenceModal, setShowConfidenceModal] = useState(false);
