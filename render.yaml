@@ -1,0 +1,23 @@
+services:
+  # Backend Web Service
+  - type: web
+    name: ecoexchange-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    rootDirectory: backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  # Frontend Static Site
+  - type: static
+    name: ecoexchange-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    rootDirectory: frontend
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

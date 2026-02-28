@@ -60,10 +60,9 @@ const App = () => (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<AuthPage />} />
-            <Route path="/sso-callback/*" element={<AuthPage />} />
-            <Route path="/sign-up/sso-callback/*" element={<AuthPage />} />
+            <Route path="/login/*" element={<AuthPage />} />
             <Route path="/sign-up/*" element={<AuthPage />} />
+            <Route path="/sso-callback/*" element={<AuthPage />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
