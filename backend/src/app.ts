@@ -13,6 +13,9 @@ import { wakeUpML } from './services/ml/mlService';
 
 const app = express();
 
+// Required for express-rate-limit to work correctly behind Render/proxies
+app.set('trust proxy', 1);
+
 // ======================== MIDDLEWARE ========================
 
 // Security
