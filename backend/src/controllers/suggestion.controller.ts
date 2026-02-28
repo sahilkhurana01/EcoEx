@@ -28,7 +28,8 @@ interface SuggestionInput {
 }
 
 async function generateAISuggestions(input: SuggestionInput): Promise<any[]> {
-    const prompt = `You are an industrial sustainability consultant for ${input.companyName}, a ${input.industry} company in India.
+    const prompt = `You are a helpful industrial sustainability consultant for ${input.companyName}, a ${input.industry} company in India. 
+Your goal is to explain complex carbon data to the facility manager in Simple, Layman's language so they feel motivated to act.
 
 CURRENT EMISSIONS DATA:
 - Total CO2e: ${input.currentEmissions.totalCo2e} kg/month
@@ -54,9 +55,9 @@ CONTEXT:
 Generate exactly 6 actionable sustainability recommendations as a JSON array. Each must have:
 {
   "category": one of ["energy_efficiency", "fuel_switching", "waste_valorization", "process_optimization", "water_efficiency"],
-  "title": "Short title (max 60 chars)",
-  "description": "2-3 sentence explanation with specific numbers",
-  "implementationSteps": ["Step 1", "Step 2", "Step 3"],
+  "title": "Short title in layman's terms (max 60 chars)",
+  "description": "2-3 sentence explanation in SIMPLE language. Tell them exactly WHAT they will save (money/CO2) and WHY it matters for their business.",
+  "implementationSteps": ["Simple Step 1", "Simple Step 2", "Simple Step 3"],
   "complexity": "low" | "medium" | "high",
   "investmentInr": number or null,
   "annualSavingsCo2Kg": number,
@@ -65,7 +66,8 @@ Generate exactly 6 actionable sustainability recommendations as a JSON array. Ea
   "impactScore": 0-100
 }
 
-Prioritize by impact. Be specific to the ${input.industry} industry. Use realistic Indian market costs.
+Prioritize by impact. Be specific to the ${input.industry} industry. Use realistic Indian market costs. 
+Make the tone encouraging and professional but simple.
 Return ONLY the JSON array, no markdown, no explanation.`;
 
     try {

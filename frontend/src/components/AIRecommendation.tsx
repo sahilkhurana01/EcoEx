@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Flame, Recycle, AlertTriangle, Zap, Droplets, Banknote, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Flame, Recycle, AlertTriangle, Zap, Droplets, Banknote, Loader2, RefreshCw, ArrowRight } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { FormulaFx } from "@/components/FormulaFx";
 
@@ -26,7 +27,10 @@ const CATEGORY_ICONS: Record<string, any> = {
 };
 
 export function AIRecommendations({ companyId }: { companyId?: string }) {
-  const { data: suggestions, isLoading } = useQuery({
+  const [isGenerating, setIsGenerating] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: suggestions, isLoading, refetch } = useQuery({
     queryKey: ['suggestions', companyId],
     queryFn: async () => {
       if (!companyId) return [];
@@ -35,6 +39,20 @@ export function AIRecommendations({ companyId }: { companyId?: string }) {
     },
     enabled: !!companyId,
   });
+
+  const handleGenerate = async () => {
+    if (!companyId || isGenerating) return;
+    setIsGenerating(true);
+    try {
+      await api.post(`/suggestions/${companyId}/generate`);
+      await refetch();
+      // Optional: scroll to see them
+    } catch (error) {
+      console.error("Failed to generate suggestions:", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -52,14 +70,54 @@ export function AIRecommendations({ companyId }: { companyId?: string }) {
 
   return (
     <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-        <Zap className="h-4 w-4 text-primary" />
-        AI Recommendations
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <Zap className="h-4 w-4 text-primary" />
+          AI Recommendations
+        </h3>
+        {suggestions && suggestions.length > 0 && (
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="text-[10px] font-bold text-primary hover:text-primary/80 disabled:opacity-50 flex items-center gap-1 uppercase tracking-wider"
+          >
+            {isGenerating ? <Loader2 className="h-2 w-2 animate-spin" /> : <RefreshCw className="h-2 w-2" />}
+            Refresh
+          </button>
+        )}
+      </div>
 
-      {!suggestions || suggestions.length === 0 ? (
-        <div className="industrial-card p-4 text-center">
-          <p className="text-xs text-muted-foreground">Gathering operations intelligence. Suggestions will appear once the AI completes processing your data.</p>
+      {(!suggestions || suggestions.length === 0) ? (
+        <div className="industrial-card p-6 flex flex-col items-center text-center gap-4 bg-primary/[0.02] border-dashed">
+          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Zap className="h-6 w-6 text-primary animate-pulse" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[13px] font-bold text-foreground">Discover Smart Ways to Save & Improve</p>
+            <p className="text-[11px] text-muted-foreground max-w-[240px] px-2">
+              Our AI is ready to find hidden money-saving actions and easy ways to reduce your CO2 output.
+            </p>
+          </div>
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2 group"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analyzing Operations...
+              </>
+            ) : (
+              <>
+                Get AI Suggestions Now
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
+          </button>
+          <p className="text-[10px] text-muted-foreground italic">
+            "High Impact, Low Hanging Fruit"
+          </p>
         </div>
       ) : (
         suggestions.slice(0, 4).map((rec: Suggestion, i: number) => {
