@@ -307,19 +307,28 @@ export default function Marketplace() {
     return Math.min(98, Math.max(40, score));
   };
 
-  const dynamicBrowseListings = otherListings.map((r: any) => ({
-    id: r._id,
-    material: r.material?.category ? r.material.category.replace(/_/g, ' ') : 'Material',
-    seller: r.companyId?.name || "EcoEx Verified Seller",
-    sellerCity: r.companyId?.location?.city || r.location?.address || null,
-    sellerIndustry: r.companyId?.industry?.replace(/_/g, ' ') || null,
-    sellerVerified: r.companyId?.verificationStatus === 'verified' || r.companyId?.verificationStatus === 'completed',
-    quantity: `${r.quantity?.value?.toLocaleString() || 0} ${r.quantity?.unit || 'kg'}`,
-    price: `₹${(r.pricing?.amount || 0).toLocaleString()}/${r.quantity?.unit || 'kg'}`,
-    matchScore: computeCompatibilityScore(r),
-    createdAt: r.createdAt,
-    frequency: r.quantity?.frequency || 'one_time',
-  }));
+  const dynamicBrowseListings = otherListings.map((r: any) => {
+    // Derive a meaningful seller name — avoid showing "New Company" 
+    const rawName = r.companyId?.name || '';
+    const sellerEmail = r.companyId?.email || '';
+    const emailName = sellerEmail ? sellerEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : '';
+    const seller = (rawName && rawName !== 'New Company') ? rawName : (emailName || 'Verified Seller');
+
+    return {
+      id: r._id,
+      material: r.material?.category ? r.material.category.replace(/_/g, ' ') : 'Material',
+      seller,
+      sellerEmail: sellerEmail || null,
+      sellerCity: r.companyId?.location?.city || r.location?.address || null,
+      sellerIndustry: r.companyId?.industry?.replace(/_/g, ' ') || null,
+      sellerVerified: r.companyId?.verificationStatus === 'verified' || r.companyId?.verificationStatus === 'completed',
+      quantity: `${r.quantity?.value?.toLocaleString() || 0} ${r.quantity?.unit || 'kg'}`,
+      price: `₹${(r.pricing?.amount || 0).toLocaleString()}/${r.quantity?.unit || 'kg'}`,
+      matchScore: computeCompatibilityScore(r),
+      createdAt: r.createdAt,
+      frequency: r.quantity?.frequency || 'one_time',
+    };
+  });
 
   const dynamicMyListings = (rawMyListings || []).map((r: any) => ({
     id: r._id,

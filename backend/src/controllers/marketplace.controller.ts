@@ -90,7 +90,7 @@ export class MarketplaceController {
 
             const [listings, total] = await Promise.all([
                 WasteListing.find(filter)
-                    .populate('companyId', 'name industry location.city verificationStatus')
+                    .populate('companyId', 'name email industry location.city verificationStatus')
                     .sort(sortObj)
                     .skip(skip)
                     .limit(limitNum),

@@ -70,6 +70,13 @@ export class AuthController {
 
             const clerkId = req.user.userId;
             const email = req.user.email;
+            // Derive a meaningful name from Clerk user data
+            const derivedName = (
+                req.user.fullName ||
+                `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() ||
+                (email ? email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : '') ||
+                'New Company'
+            );
 
             let company = await Company.findOne({ clerkUserId: clerkId });
 
@@ -82,14 +89,14 @@ export class AuthController {
                     // Create it proactively if webhook is delayed
                     company = await Company.create({
                         clerkUserId: clerkId,
-                        name: 'New Company',
+                        name: derivedName,
                         email: email || '',
                         industry: 'other',
                         location: { type: 'Point', coordinates: [0, 0] },
                         onboardingComplete: false,
                         verificationStatus: 'pending',
                     });
-                    logger.info(`Company created from sync for Clerk user: ${clerkId}`);
+                    logger.info(`Company created from sync for Clerk user: ${clerkId} — name: "${derivedName}"`);
                 }
             } else {
                 company.lastLoginAt = new Date();
@@ -99,6 +106,11 @@ export class AuthController {
                         logger.info(`Synced email for company "${company.name}": ${company.email || '(none)'} → ${email}`);
                     }
                     company.email = email;
+                }
+                // Fix companies still named "New Company" — update to real name
+                if (company.name === 'New Company' && derivedName !== 'New Company') {
+                    logger.info(`Renaming company from "New Company" → "${derivedName}" for user ${clerkId}`);
+                    company.name = derivedName;
                 }
                 await company.save();
             }

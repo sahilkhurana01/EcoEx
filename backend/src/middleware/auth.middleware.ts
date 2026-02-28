@@ -28,16 +28,15 @@ export const authMiddleware = async (
 
         try {
             // Try to verify as our own JWT first
-            const decoded = jwt.verify(token, env.JWT_SECRET) as {
-                userId: string;
-                companyId?: string;
-                email?: string;
-            };
+            const decoded = jwt.verify(token, env.JWT_SECRET) as any;
 
             (req as any).user = {
                 userId: decoded.userId,
                 companyId: decoded.companyId,
                 email: decoded.email,
+                firstName: decoded.firstName || '',
+                lastName: decoded.lastName || '',
+                fullName: decoded.fullName || '',
             };
             (req as any).companyId = decoded.companyId;
 
@@ -55,6 +54,9 @@ export const authMiddleware = async (
                         userId: decoded.sub,
                         companyId,
                         email: decoded.email || decoded.email_addresses?.[0]?.email_address,
+                        firstName: decoded.first_name || decoded.given_name || '',
+                        lastName: decoded.last_name || decoded.family_name || '',
+                        fullName: decoded.name || decoded.full_name || '',
                     };
                     (req as any).companyId = companyId;
 

@@ -401,6 +401,9 @@ export interface AuthUser {
     userId: string;
     companyId?: string;
     email?: string;
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
 }
 
 declare global {
