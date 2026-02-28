@@ -19,6 +19,8 @@ export class AlertsController {
 
             const { alertType, severity = 'high', customMessage } = req.body;
 
+            logger.info(`🧪 Simulation requested: type=${alertType}, severity=${severity}, company=${companyId}`);
+
             if (!alertType) {
                 res.status(400).json({ success: false, error: 'alertType is required' });
                 return;

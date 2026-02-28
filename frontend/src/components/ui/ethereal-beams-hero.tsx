@@ -290,7 +290,7 @@ const MergedPlanes = forwardRef<
     useImperativeHandle(ref, () => mesh.current)
 
     const geometry = useMemo(
-        () => createStackedPlanesBufferGeometry(count, width, height, 0, 100),
+        () => createStackedPlanesBufferGeometry(count, width, height, 0, 50),
         [count, width, height],
     )
 
@@ -447,12 +447,12 @@ export default function EtherealBeamsHero() {
                 <Beams
                     beamWidth={2.5}
                     beamHeight={18}
-                    beamNumber={15}
+                    beamNumber={8}
                     lightColor="#4FD1C5" // Teal emerald light
                     background="#050B0B"
-                    speed={1.5} // Slightly slower for more premium feel
-                    noiseIntensity={1.5}
-                    scale={0.12}
+                    speed={1.0} // Slower is easier on GPU
+                    noiseIntensity={1.2}
+                    scale={0.1}
                     rotation={43}
                 />
             </div>

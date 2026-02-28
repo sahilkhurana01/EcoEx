@@ -3,6 +3,7 @@ import { Company } from '../../models/Company';
 import { aiEmailGeneratorService, SIMULATION_SCENARIOS } from './aiEmailGenerator.service';
 import { brevoService } from '../notifications/brevo.service';
 import { logger } from '../../utils/logger';
+import { env } from '../../config/env';
 import mongoose from 'mongoose';
 
 export interface TriggerAlertParams {
@@ -78,12 +79,11 @@ export class AlertOrchestratorService {
             // Try to find if there's an email in the user object (if available)
             if ((params as any).userEmail) {
                 recipientEmail = (params as any).userEmail;
+                logger.info(`🔄 Using User email from auth context: ${recipientEmail}`);
             } else {
-                // Load environment variables for fallback
-                const { env: configEnv } = require('../../config/env');
                 // Final fallback to the sender email so the user can at least see it in the sender's inbox/logs
-                recipientEmail = configEnv.BREVO_SENDER_EMAIL || 'noreply@ecoexchange.ai';
-                logger.info(`🔄 Falling back to sender email for delivery: ${recipientEmail}`);
+                recipientEmail = env.BREVO_SENDER_EMAIL || 'noreply@ecoexchange.ai';
+                logger.info(`🔄 Falling back to platform sender email for delivery: ${recipientEmail}`);
             }
         }
 

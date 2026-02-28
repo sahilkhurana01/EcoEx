@@ -24,8 +24,21 @@ export class BrevoService {
           user: smtpLogin,
           pass: smtpKey,
         },
+        timeout: 10000, // 10 second timeout
       });
-      logger.info(`✅ Brevo SMTP initialized (Host: ${smtpServer}, Port: ${smtpPort}, User: ${smtpLogin})`);
+
+      // Verify connection on startup
+      this.transporter.verify((error, success) => {
+        if (error) {
+          logger.error('❌ Brevo SMTP Verification Failed:', {
+            message: error.message,
+            code: error.code,
+            user: smtpLogin,
+          });
+        } else {
+          logger.info(`✅ Brevo SMTP Ready & Verified (Host: ${smtpServer}, User: ${smtpLogin})`);
+        }
+      });
     } else {
       logger.warn('⚠️ Brevo SMTP NOT configured. Emails will be skipped. Ensure BREVO_API_KEY and BREVO_SENDER_EMAIL are set.');
     }
