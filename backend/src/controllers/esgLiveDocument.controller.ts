@@ -167,11 +167,11 @@ async function aggregateCompanyData(companyId: string) {
         lastUpdated: new Date().toISOString(),
         versionHash,
         emissions: {
-            totalCo2e: Math.round(ce.totalCo2e || 0),
-            scope1: Math.round(ce.scope1 || 0),
-            scope2: Math.round(ce.scope2 || 0),
-            scope3: Math.round(ce.scope3 || 0),
-            breakdown: ce.breakdown || {},
+            totalCo2e: Math.round((ce as any)?.totalCo2e || 0),
+            scope1: Math.round((ce as any)?.scope1 || 0),
+            scope2: Math.round((ce as any)?.scope2 || 0),
+            scope3: Math.round((ce as any)?.scope3 || 0),
+            breakdown: (ce as any)?.breakdown || {},
             trendDirection: prediction?.trendDirection || 'stable',
             annualProjection: prediction?.annualProjection || null,
             forecasts: prediction?.forecasts || [],
@@ -262,7 +262,7 @@ export class ESGLiveDocumentController {
      */
     async getDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const data = await aggregateCompanyData(req.params.companyId);
+            const data = await aggregateCompanyData(req.params.companyId as string);
             const narrative = await generateAINarrative(data);
             res.json({ success: true, data: { ...data, executiveSummary: narrative } });
         } catch (error: any) {
@@ -279,7 +279,7 @@ export class ESGLiveDocumentController {
      * Server-Sent Events for real-time updates
      */
     async streamUpdates(req: Request, res: Response): Promise<void> {
-        const companyId = req.params.companyId;
+        const companyId = req.params.companyId as string;
 
         res.writeHead(200, {
             'Content-Type': 'text/event-stream',
@@ -319,12 +319,13 @@ export class ESGLiveDocumentController {
      */
     async refreshDocument(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const data = await aggregateCompanyData(req.params.companyId);
+            const companyId = req.params.companyId as string;
+            const data = await aggregateCompanyData(companyId);
             const narrative = await generateAINarrative(data);
             const fullData = { ...data, executiveSummary: narrative };
 
             // Notify all connected SSE clients
-            notifyClients(req.params.companyId, fullData);
+            notifyClients(companyId, fullData);
 
             res.json({ success: true, data: fullData });
         } catch (error: any) {
@@ -342,8 +343,8 @@ export class ESGLiveDocumentController {
      */
     async getFramework(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const data = await aggregateCompanyData(req.params.companyId);
-            const fw = req.params.framework.toUpperCase() as 'GRI' | 'SASB' | 'TCFD' | 'BRSR';
+            const data = await aggregateCompanyData(req.params.companyId as string);
+            const fw = (req.params.framework as string).toUpperCase() as 'GRI' | 'SASB' | 'TCFD' | 'BRSR';
             const frameworkData = (data.frameworks as any)[fw];
             if (!frameworkData) {
                 res.status(400).json({ success: false, error: `Unknown framework: ${fw}` });
