@@ -18,6 +18,7 @@ import ROIDashboard from "./pages/ROIDashboard";
 import ESGReports from "./pages/ESGReports";
 import Settings from "./pages/Settings";
 import AlertsPage from "./pages/AlertsPage";
+import LiveDocument from "./pages/LiveDocument";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,8 @@ const App = () => (
               <Route path="/esg-reports" element={<ESGReports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/live-document" element={<LiveDocument />} />
+              <Route path="/live/:companyId" element={<LiveDocument />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

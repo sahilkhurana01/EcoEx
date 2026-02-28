@@ -41,10 +41,11 @@ const mainNav = [
 ];
 
 const reportNav = [
+  { title: "Alive ESG Document", url: "/live-document", icon: FileCheck },
   { title: "Digital Passports", url: "/passports", icon: FileCheck },
   { title: "ROI Dashboard", url: "/roi-dashboard", icon: LineChart },
   { title: "Impact Dashboard", url: "/impact-dashboard", icon: BarChart3 },
-  { title: "ESG Reports", url: "/esg-reports", icon: ClipboardList },
+  { title: "ESG Reports (Legacy)", url: "/esg-reports", icon: ClipboardList },
 ];
 
 export function AppSidebar() {

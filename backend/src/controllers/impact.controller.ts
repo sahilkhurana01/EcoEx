@@ -16,6 +16,7 @@ import {
     ENERGY_SAVINGS_PER_KG,
     LANDFILL_VOLUME_PER_KG,
 } from '../utils/constants';
+import { triggerESGLiveUpdate } from './esgLiveDocument.controller';
 
 export class ImpactController {
     /**
@@ -56,6 +57,11 @@ export class ImpactController {
                     waterEfficiency: inputs.outputUnits ? inputs.waterLiters / inputs.outputUnits : undefined,
                 },
             });
+
+            // Trigger AI-powered ESG push for active viewers
+            if (targetCompanyId) {
+                triggerESGLiveUpdate(targetCompanyId.toString());
+            }
 
             res.json({
                 success: true,

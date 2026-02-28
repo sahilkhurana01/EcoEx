@@ -11,6 +11,7 @@ import mlRoutes from './ml.routes';
 import alertsRoutes from './alerts.routes';
 import webhookRoutes from './webhook.routes';
 import roiRoutes from './roi.routes';
+import esgLiveRoutes from './esgLive.routes';
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use('/ml', mlRoutes);
 router.use('/alerts', alertsRoutes);
 router.use('/webhooks', webhookRoutes);
 router.use('/roi', roiRoutes);
+router.use('/esg-live', esgLiveRoutes);
 
 export default router;

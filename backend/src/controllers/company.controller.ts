@@ -4,6 +4,7 @@ import { ImpactAnalytics } from '../models/ImpactAnalytics';
 import { WasteListing } from '../models/WasteListing';
 import { Match } from '../models/Match';
 import { logger } from '../utils/logger';
+import { triggerESGLiveUpdate } from './esgLiveDocument.controller';
 
 export class CompanyController {
     /**
@@ -69,6 +70,11 @@ export class CompanyController {
                 { ...req.body, updatedAt: new Date() },
                 { new: true, runValidators: true }
             );
+
+            // Trigger AI-powered ESG push for active viewers
+            if (updated) {
+                triggerESGLiveUpdate(updated._id.toString());
+            }
 
             res.json({ success: true, data: updated });
         } catch (error) {
