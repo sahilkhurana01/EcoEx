@@ -6,6 +6,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
+import { useState } from "react";
+import jsPDF from "jspdf";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +17,151 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog";
 
+/**
+ * Generate a formatted PDF from ESG report data and trigger browser download
+ */
+function downloadReportAsPDF(report: {
+  title: string;
+  period: string;
+  content: string;
+  metrics?: string[];
+  createdAt?: string;
+}, companyName: string) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const usableWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  const addNewPageIfNeeded = (requiredSpace: number) => {
+    if (y + requiredSpace > pageHeight - margin) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  // ── Header band ──
+  doc.setFillColor(16, 185, 129); // emerald-500
+  doc.rect(0, 0, pageWidth, 40, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("ESG Performance Report", margin, 18);
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.text(companyName, margin, 27);
+
+  doc.setFontSize(9);
+  doc.text(`Period: ${report.period}`, margin, 34);
+  doc.text(`Generated: ${report.createdAt ? new Date(report.createdAt).toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" }) : new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, pageWidth - margin - 60, 34);
+
+  y = 50;
+
+  // ── Report title ──
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text(report.title, margin, y);
+  y += 8;
+
+  // ── Metrics tags ──
+  if (report.metrics && report.metrics.length > 0) {
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Scope: ${report.metrics.join(" · ")}`, margin, y);
+    y += 10;
+  }
+
+  // ── Divider ──
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+
+  // ── Body content ──
+  doc.setTextColor(40, 40, 40);
+  const content = report.content || "No content available.";
+  const lines = content.split("\n");
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+
+    // Detect section headers (lines that are all-caps or start with ## / ** or end with :)
+    const isHeader =
+      /^#{1,3}\s/.test(trimmed) ||
+      /^\*\*.*\*\*$/.test(trimmed) ||
+      (/^[A-Z\s\d&,/()-]+:?$/.test(trimmed) && trimmed.length > 3 && trimmed.length < 80);
+
+    if (isHeader) {
+      addNewPageIfNeeded(14);
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(16, 185, 129);
+      const headerText = trimmed.replace(/^#+\s*/, "").replace(/^\*\*/, "").replace(/\*\*$/, "");
+      doc.text(headerText, margin, y);
+      y += 7;
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      continue;
+    }
+
+    // Bullet points
+    const isBullet = /^[-•*]\s/.test(trimmed);
+    const textX = isBullet ? margin + 4 : margin;
+    const textWidth = isBullet ? usableWidth - 4 : usableWidth;
+
+    if (trimmed === "") {
+      y += 3;
+      continue;
+    }
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const wrapped = doc.splitTextToSize(trimmed, textWidth);
+
+    for (const wLine of wrapped) {
+      addNewPageIfNeeded(6);
+      if (isBullet && wLine === wrapped[0]) {
+        doc.text("•", margin, y);
+      }
+      doc.text(wLine.replace(/^[-•*]\s/, ""), textX, y);
+      y += 5.5;
+    }
+  }
+
+  // ── Footer on every page ──
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(160, 160, 160);
+    doc.setFont("helvetica", "italic");
+    doc.text(
+      `EcoExchange · ${companyName} · Confidential`,
+      margin,
+      pageHeight - 10
+    );
+    doc.text(
+      `Page ${i} of ${totalPages}`,
+      pageWidth - margin - 20,
+      pageHeight - 10
+    );
+  }
+
+  // ── Trigger download ──
+  const filename = `${report.title.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, "_")}.pdf`;
+  doc.save(filename);
+}
+
 export default function ESGReports() {
   const { company } = useAuthStore();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: complianceData, isLoading: isCompLoading } = useQuery({
     queryKey: ['compliance', company?.id],
@@ -43,12 +188,34 @@ export default function ESGReports() {
       const res: any = await api.post('/impact/esg/generate-report', { period: 'Q4 2024' });
       return res.data;
     },
-    onSuccess: () => {
-      toast.success("ESG Report generated with Gemini AI! Check your downloads.");
+    onSuccess: (data: any) => {
+      toast.success("ESG Report generated! Downloading PDF...");
       refetchReports();
+      // Auto-download the generated report
+      if (data) {
+        downloadReportAsPDF(
+          {
+            title: data.title || 'Q4 2024 ESG Performance Report',
+            period: data.period || 'Q4 2024',
+            content: data.content || '',
+            metrics: data.metrics || ['Carbon', 'Waste', 'Water'],
+            createdAt: data.createdAt,
+          },
+          company?.name || 'Company'
+        );
+      }
+      setIsGenerating(false);
     },
-    onError: () => toast.error("Failed to generate AI report.")
+    onError: () => {
+      toast.error("Failed to generate AI report.");
+      setIsGenerating(false);
+    }
   });
+
+  const handleGenerateAndDownload = () => {
+    setIsGenerating(true);
+    generateMutation.mutate();
+  };
 
   const liveCompliance = [
     { framework: "GRI Standards", status: complianceData?.GRI ? "compliant" : "pending", detail: "Global Reporting Initiative" },
@@ -100,35 +267,21 @@ export default function ESGReports() {
           </div>
         </div>
         <div className="flex gap-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Download className="h-4 w-4" /> Generate AI Report
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card border-border">
-              <DialogHeader>
-                <DialogTitle>Audit Report Ready</DialogTitle>
-                <DialogDescription>Your Q4 2024 ESG Audit has been compiled based on live facility data sync.</DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col gap-4 mt-4">
-                <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                      <FileText className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold">ESG_Audit_Q4_2024.pdf</p>
-                      <p className="text-xs text-muted-foreground">Prepared today · 2.4 MB</p>
-                    </div>
-                  </div>
-                  <Button className="gap-2" onClick={() => toast.success("Downloading audit report...")}>
-                    <Download className="h-4 w-4" /> Download
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button
+            className="gap-2"
+            onClick={handleGenerateAndDownload}
+            disabled={isGenerating || generateMutation.isPending}
+          >
+            {isGenerating || generateMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating...
+              </>
+            ) : (
+              <>
+                <Download className="h-4 w-4" /> Generate & Download Report
+              </>
+            )}
+          </Button>
           <Button
             variant="outline"
             className="gap-2 text-muted-foreground"
@@ -233,13 +386,39 @@ export default function ESGReports() {
                         {r.content}
                       </div>
                       <div className="flex justify-end mt-4">
-                        <Button variant="outline" className="gap-2" onClick={() => toast.success("Downloading PDF...")}>
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => {
+                            downloadReportAsPDF(
+                              {
+                                title: r.title,
+                                period: r.period,
+                                content: r.content,
+                                metrics: r.metrics,
+                                createdAt: r.createdAt,
+                              },
+                              company?.name || 'Company'
+                            );
+                            toast.success("PDF downloaded!");
+                          }}
+                        >
                           <Download className="h-4 w-4" /> Download PDF
                         </Button>
                       </div>
                     </DialogContent>
                   </Dialog>
-                  <Button size="sm" variant="ghost" className="text-xs h-7 hover:bg-primary/10" onClick={() => toast.success("Opening in mail client...")}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs h-7 hover:bg-primary/10"
+                    onClick={() => {
+                      const subject = encodeURIComponent(`ESG Report: ${r.title} - ${company?.name}`);
+                      const body = encodeURIComponent(`Hello,\n\nPlease find the ESG report "${r.title}" for period ${r.period}.\n\nReport Summary:\n${(r.content || '').substring(0, 500)}...\n\nRegards,\nESG Department`);
+                      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                      toast.success("Opening mail client...");
+                    }}
+                  >
                     <Mail className="h-3 w-3" />
                   </Button>
                 </td>
@@ -251,4 +430,5 @@ export default function ESGReports() {
     </div>
   );
 }
+
 
