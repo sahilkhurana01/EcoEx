@@ -25,10 +25,10 @@ export class BrevoService {
           pass: smtpKey,
         },
         timeout: 10000, // 10 second timeout
-      });
+      } as any);
 
       // Verify connection on startup
-      this.transporter.verify((error, success) => {
+      this.transporter.verify((error: any, success) => {
         if (error) {
           logger.error('❌ Brevo SMTP Verification Failed:', {
             message: error.message,
