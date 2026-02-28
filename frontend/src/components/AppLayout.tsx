@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { Navigate } from "react-router-dom";
 import { AlertBell } from "@/components/AlertBell";
 import { SimulationFAB } from "@/components/SimulationFAB";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 import { UserButton, useUser, useAuth as useClerkAuth } from "@clerk/clerk-react";
 import { useEffect } from "react";
@@ -104,13 +105,15 @@ export function AppLayout() {
               </div>
             </div>
           </header>
-          <main className="flex-1 overflow-auto p-6">
+          <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
             <Outlet />
           </main>
         </div>
       </div>
       {/* Floating Simulation Button */}
       <SimulationFAB />
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </SidebarProvider>
   );
 }
