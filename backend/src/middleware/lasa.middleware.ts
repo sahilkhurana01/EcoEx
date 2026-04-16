@@ -38,7 +38,7 @@ async function flushLogs() {
     });
 
     if (res.ok) {
-      const data = await res.json();
+      const data = await res.json() as any;
       console.log(`[LASA] ✅ Sent ${batch.length} logs → ${data.processed} processed`);
     } else {
       console.warn(`[LASA] ⚠️ API returned ${res.status}`);
