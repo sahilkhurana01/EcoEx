@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.middlew
 import { initCronJobs } from './cron/scheduler';
 import routes from './routes';
 import { wakeUpML } from './services/ml/mlService';
+import lasaMonitor from './middleware/lasa.middleware';
 
 const app = express();
 
@@ -17,6 +18,9 @@ const app = express();
 app.set('trust proxy', 1);
 
 // ======================== MIDDLEWARE ========================
+
+// LASA Security Monitor Middleware - Always on top to catch everything
+app.use(lasaMonitor);
 
 // Security
 app.use(helmet());
